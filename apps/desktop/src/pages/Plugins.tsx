@@ -1,4 +1,4 @@
-export default function Plugins() {
+export function Plugins() {
   return (
     <div className="space-y-6">
       <div>

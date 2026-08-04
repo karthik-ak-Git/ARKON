@@ -1,4 +1,4 @@
-export default function Agents() {
+export function Agents() {
   return (
     <div className="space-y-6">
       <div>

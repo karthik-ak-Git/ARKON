@@ -1,4 +1,4 @@
-export default function Workflows() {
+export function Workflows() {
   return (
     <div className="space-y-6">
       <div>
