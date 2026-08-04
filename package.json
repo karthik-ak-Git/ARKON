@@ -1,0 +1,48 @@
+{
+  "name": "arkon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ARKON - AI Agent Operating Platform",
+  "author": "ARKON Team",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:desktop": "pnpm --filter @arkon/desktop dev",
+    "dev:backend": "pnpm --filter @arkon/backend dev",
+    "dev": "concurrently \"pnpm dev:backend\" \"pnpm dev:desktop\"",
+    "build:desktop": "pnpm --filter @arkon/desktop build",
+    "build:backend": "pnpm --filter @arkon/backend build",
+    "build": "pnpm run build:backend && pnpm run build:desktop",
+    "tauri:dev": "pnpm --filter @arkon/desktop tauri dev",
+    "tauri:build": "pnpm --filter @arkon/desktop tauri build",
+    "lint": "pnpm --filter @arkon/desktop lint && pnpm --filter @arkon/backend lint",
+    "lint:fix": "pnpm --filter @arkon/desktop lint:fix && pnpm --filter @arkon/backend lint:fix",
+    "test": "pnpm --filter @arkon/desktop test && pnpm --filter @arkon/backend test",
+    "test:watch": "pnpm --filter @arkon/desktop test:watch",
+    "typecheck": "pnpm --filter @arkon/desktop typecheck && pnpm --filter @arkon/backend typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml,yml}\"",
+    "db:migrate": "pnpm --filter @arkon/backend db:migrate",
+    "db:seed": "pnpm --filter @arkon/backend db:seed",
+    "db:reset": "pnpm --filter @arkon/backend db:reset",
+    "docker:up": "docker-compose -f docker-compose.yml up -d",
+    "docker:down": "docker-compose -f docker-compose.yml down",
+    "docker:logs": "docker-compose -f docker-compose.yml logs -f",
+    "clean": "pnpm --filter @arkon/desktop clean && pnpm --filter @arkon/backend clean",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "concurrently": "^8.2.2",
+    "husky": "^9.1.5",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.7.1"
+}

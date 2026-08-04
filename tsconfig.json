@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@arkon/shared/*": ["packages/shared/src/*"],
+      "@arkon/agent-sdk/*": ["packages/agent-sdk/src/*"],
+      "@arkon/backend/*": ["apps/backend/src/*"],
+      "@arkon/desktop/*": ["apps/desktop/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", "**/node_modules/**", "**/dist/**", "**/build/**"],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/agent-sdk" },
+    { "path": "./apps/backend" },
+    { "path": "./apps/desktop" }
+  ]
+}
