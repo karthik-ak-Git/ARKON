@@ -1,8 +1,34 @@
+# Backend
+backend/.env
+backend/storage/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/*.egg-info/
+backend/dist/
+backend/build/
+
+# Node
 node_modules/
 dist/
 release/
-*.log
-.env
-.env.local
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Desktop app
+desktop/node_modules/
+desktop/dist/
+desktop/release/

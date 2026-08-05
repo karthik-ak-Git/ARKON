@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: arkon-postgres
+    environment:
+      POSTGRES_USER: arkon
+      POSTGRES_PASSWORD: arkon
+      POSTGRES_DB: arkon
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arkon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: arkon-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: arkon-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://arkon:arkon@postgres:5432/arkon
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      ENVIRONMENT: development
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - storage_data:/app/storage
+
+  nats:
+    image: nats:2-alpine
+    container_name: arkon-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage_data:

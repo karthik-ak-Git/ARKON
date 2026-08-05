@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArkonStore } from '../../store/useArkonStore';
+import { api } from '../../lib/api';
 import { MessageSquare, Send, User, Bot } from 'lucide-react';
 
 interface Message {
@@ -13,6 +14,7 @@ export function ViewChat() {
   const { activeWorkspaceId, workspaces } = useArkonStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
@@ -21,8 +23,8 @@ export function ViewChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || isSending) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -33,17 +35,20 @@ export function ViewChat() {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setIsSending(true);
 
-    // Simulate assistant response
+    // TODO: Replace with actual backend chat endpoint (Phase 2)
+    // For now, show a placeholder
     setTimeout(() => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I received your message: "${userMessage.content}". This is a placeholder response. Connect your AI agent to enable real responses.`,
+        content: `Backend chat endpoint not yet implemented. Message received: "${userMessage.content}"`,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
-    }, 500);
+      setIsSending(false);
+    }, 300);
   };
 
   if (!activeWorkspace) {
@@ -112,11 +117,12 @@ export function ViewChat() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-white/20"
+            disabled={isSending}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-white/20 disabled:opacity-50"
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isSending}
             className="w-10 h-10 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:opacity-40"
           >
             <Send className="w-4 h-4" strokeWidth={1.5} />

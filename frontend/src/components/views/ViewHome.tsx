@@ -1,28 +1,44 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useArkonStore } from '../../store/useArkonStore';
 import { FolderGit2, Blocks, Bot, MessageSquare, Clock, Trash2 } from 'lucide-react';
 
 export function ViewHome() {
-  const { addWorkspace, setActiveSidebarItem, workspaces, setActiveWorkspace, deleteWorkspace, activeWorkspaceId } = useArkonStore();
+  const {
+    workspaces,
+    activeWorkspaceId,
+    fetchWorkspaces,
+    createWorkspace,
+    selectWorkspace,
+    deleteWorkspace,
+    setActiveSidebarItem,
+    isLoadingWorkspaces,
+  } = useArkonStore();
 
-  const handleCreateWorkspace = () => {
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  const handleCreateWorkspace = async () => {
     const name = `Workspace ${workspaces.length + 1}`;
-    addWorkspace(name);
-    setActiveSidebarItem('chat');
+    const workspace = await createWorkspace(name);
+    if (workspace) {
+      setActiveSidebarItem('chat');
+    }
   };
 
   const handleOpenWorkspace = (id?: string) => {
     if (id) {
-      setActiveWorkspace(id);
+      selectWorkspace(id);
     } else if (workspaces.length > 0) {
-      setActiveWorkspace(workspaces[0].id);
+      selectWorkspace(workspaces[0].id);
     }
     setActiveSidebarItem('chat');
   };
 
-  const formatTime = (timestamp: number) => {
+  const formatTime = (timestamp: string) => {
     const now = Date.now();
-    const diff = now - timestamp;
+    const then = new Date(timestamp).getTime();
+    const diff = now - then;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -77,14 +93,16 @@ export function ViewHome() {
                   <div className="text-[14px] text-gray-900 dark:text-gray-100 font-medium truncate">
                     {workspace.name}
                   </div>
-                  <div className="text-[12px] text-gray-400 dark:text-gray-500 truncate">
-                    {workspace.lastMessage}
-                  </div>
+                  {workspace.description && (
+                    <div className="text-[12px] text-gray-400 dark:text-gray-500 truncate">
+                      {workspace.description}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[11px] text-gray-400 dark:text-gray-600 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {formatTime(workspace.updatedAt)}
+                    {formatTime(workspace.updated_at)}
                   </span>
                   <button
                     onClick={(e) => {
@@ -99,6 +117,20 @@ export function ViewHome() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Loading state */}
+      {isLoadingWorkspaces && workspaces.length === 0 && (
+        <div className="mt-12 text-[14px] text-gray-400 dark:text-gray-500">
+          Loading workspaces...
+        </div>
+      )}
+
+      {/* Empty state with backend error */}
+      {!isLoadingWorkspaces && workspaces.length === 0 && (
+        <div className="mt-12 text-[14px] text-gray-400 dark:text-gray-500">
+          No workspaces yet. Create one to get started.
         </div>
       )}
     </div>

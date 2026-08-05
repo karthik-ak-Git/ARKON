@@ -1,92 +1,191 @@
+/**
+ * ARKON Store - Thin Client.
+ * 
+ * This store manages UI state only.
+ * All domain state comes from the backend via the API client.
+ * No business logic. No execution. No fake data.
+ */
+
 import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
-import { Agent, Project, Plugin, Workflow, EventMessage, Workspace } from '../types';
+import { api, Workspace, Project, Agent } from '../lib/api';
 
 export type SidebarItem = 'home' | 'projects' | 'agents' | 'workflows' | 'plugins' | 'chat' | 'settings';
 
 interface ArkonState {
-  // App State
+  // UI State
   activeSidebarItem: SidebarItem;
   setActiveSidebarItem: (item: SidebarItem) => void;
-  
   isWorkspaceOpen: boolean;
   setWorkspaceOpen: (isOpen: boolean) => void;
 
-  // Domain State
+  // Domain State (from backend)
+  workspaces: Workspace[];
   projects: Project[];
   agents: Agent[];
-  plugins: Plugin[];
-  workflows: Workflow[];
-  events: EventMessage[];
-  
-  // Workspace / Chat History
-  workspaces: Workspace[];
   activeWorkspaceId: string | null;
-  addWorkspace: (name: string) => void;
-  setActiveWorkspace: (id: string) => void;
-  deleteWorkspace: (id: string) => void;
-  
-  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  addAgent: (agent: Omit<Agent, 'id' | 'createdAt' | 'cpuUsage' | 'memoryUsage'>) => void;
-  addEvent: (event: Omit<EventMessage, 'id' | 'timestamp'>) => void;
-  
-  updateAgentStatus: (id: string, status: Agent['status']) => void;
-  updateAgentMetrics: (id: string, cpuUsage: number, memoryUsage: number) => void;
+
+  // Loading states
+  isLoadingWorkspaces: boolean;
+  isLoadingProjects: boolean;
+  isLoadingAgents: boolean;
+  error: string | null;
+
+  // Workspace actions
+  fetchWorkspaces: () => Promise<void>;
+  createWorkspace: (name: string, description?: string) => Promise<Workspace | null>;
+  selectWorkspace: (id: string) => void;
+  deleteWorkspace: (id: string) => Promise<void>;
+
+  // Project actions
+  fetchProjects: (workspaceId: string) => Promise<void>;
+  createProject: (workspaceId: string, name: string, description?: string) => Promise<Project | null>;
+  deleteProject: (workspaceId: string, projectId: string) => Promise<void>;
+
+  // Agent actions
+  fetchAgents: (workspaceId: string) => Promise<void>;
+  createAgent: (workspaceId: string, name: string, agentType?: string) => Promise<Agent | null>;
+  deleteAgent: (workspaceId: string, agentId: string) => Promise<void>;
+
+  // Clear
+  clearError: () => void;
 }
 
-export const useArkonStore = create<ArkonState>((set) => ({
+export const useArkonStore = create<ArkonState>((set, get) => ({
+  // UI State
   activeSidebarItem: 'home',
   setActiveSidebarItem: (item) => set({ activeSidebarItem: item }),
-  
   isWorkspaceOpen: false,
   setWorkspaceOpen: (isOpen) => set({ isWorkspaceOpen: isOpen }),
-  
-  // Empty states
+
+  // Domain State
+  workspaces: [],
   projects: [],
   agents: [],
-  plugins: [],
-  workflows: [],
-  events: [],
-  
-  // Workspace / Chat History
-  workspaces: [],
   activeWorkspaceId: null,
-  addWorkspace: (name) => set((state) => {
-    const newWorkspace: Workspace = {
-      id: uuidv4(),
-      name,
-      lastMessage: 'New conversation',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    return {
-      workspaces: [newWorkspace, ...state.workspaces],
-      activeWorkspaceId: newWorkspace.id,
-    };
-  }),
-  setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
-  deleteWorkspace: (id) => set((state) => ({
-    workspaces: state.workspaces.filter((w) => w.id !== id),
-    activeWorkspaceId: state.activeWorkspaceId === id ? null : state.activeWorkspaceId,
-  })),
-  
-  addProject: (project) => set((state) => ({
-    projects: [...state.projects, { ...project, id: uuidv4(), createdAt: Date.now(), updatedAt: Date.now() }]
-  })),
-  
-  addAgent: (agent) => set((state) => ({
-    agents: [...state.agents, { ...agent, id: uuidv4(), createdAt: Date.now(), cpuUsage: 0, memoryUsage: 0 }]
-  })),
-  
-  addEvent: (event) => set((state) => ({
-    events: [{ ...event, id: uuidv4(), timestamp: Date.now() }, ...state.events].slice(0, 100)
-  })),
-  
-  updateAgentStatus: (id, status) => set((state) => ({
-    agents: state.agents.map(a => a.id === id ? { ...a, status } : a)
-  })),
-  
-  updateAgentMetrics: (id, cpuUsage, memoryUsage) => set((state) => ({
-    agents: state.agents.map(a => a.id === id ? { ...a, cpuUsage, memoryUsage } : a)
-  }))
+
+  // Loading
+  isLoadingWorkspaces: false,
+  isLoadingProjects: false,
+  isLoadingAgents: false,
+  error: null,
+
+  // Workspace actions
+  fetchWorkspaces: async () => {
+    set({ isLoadingWorkspaces: true, error: null });
+    try {
+      const workspaces = await api.listWorkspaces();
+      set({ workspaces, isLoadingWorkspaces: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoadingWorkspaces: false });
+    }
+  },
+
+  createWorkspace: async (name, description) => {
+    set({ error: null });
+    try {
+      const workspace = await api.createWorkspace({ name, description });
+      set((state) => ({
+        workspaces: [workspace, ...state.workspaces],
+        activeWorkspaceId: workspace.id,
+      }));
+      return workspace;
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return null;
+    }
+  },
+
+  selectWorkspace: (id) => {
+    set({ activeWorkspaceId: id });
+  },
+
+  deleteWorkspace: async (id) => {
+    set({ error: null });
+    try {
+      await api.deleteWorkspace(id);
+      set((state) => ({
+        workspaces: state.workspaces.filter((w) => w.id !== id),
+        activeWorkspaceId: state.activeWorkspaceId === id ? null : state.activeWorkspaceId,
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  // Project actions
+  fetchProjects: async (workspaceId) => {
+    set({ isLoadingProjects: true, error: null });
+    try {
+      const projects = await api.listProjects(workspaceId);
+      set({ projects, isLoadingProjects: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoadingProjects: false });
+    }
+  },
+
+  createProject: async (workspaceId, name, description) => {
+    set({ error: null });
+    try {
+      const project = await api.createProject(workspaceId, { name, description });
+      set((state) => ({
+        projects: [project, ...state.projects],
+      }));
+      return project;
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return null;
+    }
+  },
+
+  deleteProject: async (workspaceId, projectId) => {
+    set({ error: null });
+    try {
+      await api.deleteProject(workspaceId, projectId);
+      set((state) => ({
+        projects: state.projects.filter((p) => p.id !== projectId),
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  // Agent actions
+  fetchAgents: async (workspaceId) => {
+    set({ isLoadingAgents: true, error: null });
+    try {
+      const agents = await api.listAgents(workspaceId);
+      set({ agents, isLoadingAgents: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoadingAgents: false });
+    }
+  },
+
+  createAgent: async (workspaceId, name, agentType) => {
+    set({ error: null });
+    try {
+      const agent = await api.createAgent(workspaceId, { name, agent_type: agentType });
+      set((state) => ({
+        agents: [agent, ...state.agents],
+      }));
+      return agent;
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return null;
+    }
+  },
+
+  deleteAgent: async (workspaceId, agentId) => {
+    set({ error: null });
+    try {
+      await api.deleteAgent(workspaceId, agentId);
+      set((state) => ({
+        agents: state.agents.filter((a) => a.id !== agentId),
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  // Clear
+  clearError: () => set({ error: null }),
 }));
