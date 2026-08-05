@@ -26,23 +26,63 @@ class SchemaBase(BaseModel):
 
 
 class WorkspaceCreate(SchemaBase):
-    name: str = Field(..., min_length=1, max_length=255)
-    description: str | None = None
+    """Schema for creating a workspace."""
+
+    id: str = Field(..., min_length=1, max_length=255, description="Workspace ID")
+    name: str = Field(..., min_length=1, max_length=255, description="Workspace name")
+    description: str | None = Field(None, description="Workspace description")
+    path: str | None = Field(None, description="Filesystem path for projects")
+    tags: list[str] | None = Field(None, description="Workspace tags")
 
 
 class WorkspaceUpdate(SchemaBase):
+    """Schema for updating workspace."""
+
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
-    settings: dict | None = None
+    tags: list[str] | None = None
 
 
 class WorkspaceRead(SchemaBase):
-    id: uuid.UUID
+    """Schema for reading workspace."""
+
+    id: str
     name: str
     description: str | None
-    settings: dict | None
+    state: str
+    path: str | None
+    tags: list[str] | None
     created_at: datetime
     updated_at: datetime
+
+
+class WorkspaceOpen(SchemaBase):
+    """Schema for opening a workspace."""
+
+    workspace_id: str
+
+
+class WorkspaceSnapshotCreate(SchemaBase):
+    """Schema for creating a snapshot."""
+
+    name: str | None = Field(None, description="Snapshot name")
+
+
+class WorkspaceSnapshotRead(SchemaBase):
+    """Schema for reading a snapshot."""
+
+    id: str
+    name: str
+    workspace_id: str
+    created_at: float
+    status: str
+
+
+class WorkspaceList(SchemaBase):
+    """Schema for listing workspaces."""
+
+    active: list[WorkspaceRead]
+    available: list[WorkspaceRead]
 
 
 # =============================================================================

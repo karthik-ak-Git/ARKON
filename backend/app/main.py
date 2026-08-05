@@ -36,6 +36,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         module_count=len(kernel.registry),
     )
 
+    # Initialize workspace manager
+    from app.workspace import WorkspaceManager
+    from app.api.workspaces import set_manager
+
+    workspace_manager = WorkspaceManager(base_path=settings.DATA_DIR)
+    set_manager(workspace_manager)
+    logger.info("workspace_manager_initialized")
+
     yield
 
     # Shutdown
