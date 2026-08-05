@@ -2,23 +2,46 @@
 
 ## Overview
 
-ARKON is a modular, extensible AI Agent Operating Platform designed to orchestrate hundreds of specialized AI agents simultaneously. The platform is plugin-based, where the video editing system is the first example plugin.
+ARKON is a modular, extensible AI Agent Operating Platform designed to orchestrate hundreds of specialized AI agents simultaneously.
 
 ## Project Structure
 
 ```
 ARKON/
-├── frontend/                    # React frontend application
-└── LICENSE
+├── frontend/                    # React + Vite web application
+├── desktop/                     # Electron desktop application
+├── LICENSE
+└── README.md
 ```
 
-## Design Principles
+## Quick Start
 
-1. **Plugin Architecture**: Everything is a plugin
-2. **Event-Driven**: Everything communicates using events
-3. **Resumable**: All operations can be resumed
-4. **Observable**: All operations are observable
-5. **Replaceable**: All components are replaceable
-6. **Dependency Injection**: Prefer DI over hard-coded dependencies
-7. **Clean Architecture**: Domain logic isolated from infrastructure
-8. **SOLID Principles**: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
+### Web Version
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Desktop Version
+```bash
+cd desktop
+npm install
+npm run dev
+```
+
+## Build
+
+### Web
+```bash
+cd frontend
+npm run build
+```
+
+### Desktop
+```bash
+cd desktop
+npm run build:win    # Windows
+npm run build:mac    # macOS
+npm run build:linux  # Linux
+```

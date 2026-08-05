@@ -1,0 +1,54 @@
+{
+  "name": "arkon-desktop",
+  "description": "ARKON AI Agent Operating Platform - Desktop App",
+  "private": true,
+  "version": "1.0.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"cd ../frontend && npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "build:frontend": "cd ../frontend && npm run build",
+    "build:win": "npm run build:frontend && electron-builder --win",
+    "build:mac": "npm run build:frontend && electron-builder --mac",
+    "build:linux": "npm run build:frontend && electron-builder --linux"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.arkon.desktop",
+    "productName": "ARKON",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "../frontend/dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "app",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "../frontend/public/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "../frontend/public/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "../frontend/public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
