@@ -81,6 +81,9 @@ class MockModule(IModule):
     async def stop(self) -> None:
         self._stopped = True
 
+    async def shutdown(self) -> None:
+        self._stopped = True
+
     async def health_check(self) -> dict:
         return {"status": "ok" if self._healthy else "error"}
 
@@ -138,7 +141,14 @@ class TestServiceContainer:
 
     def test_transient(self):
         container = ServiceContainer()
-        container.register(str, lambda: str(id(object())), singleton=False)
+        counter = 0
+
+        def factory():
+            nonlocal counter
+            counter += 1
+            return f"instance-{counter}"
+
+        container.register(str, factory, singleton=False)
         a = container.resolve(str)
         b = container.resolve(str)
         assert a != b
@@ -195,7 +205,9 @@ class TestModuleRegistry:
         assert registry.get_optional("nonexistent") is None
         module = MockModule(name="test")
         registry.register(module)
-        assert registry.get_optional("test") is module
+        result = registry.get_optional("test")
+        assert result is not None
+        assert result.module is module
 
     def test_has(self):
         registry = ModuleRegistry()
