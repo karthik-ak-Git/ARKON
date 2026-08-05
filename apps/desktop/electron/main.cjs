@@ -11,7 +11,7 @@ function createWindow() {
     minHeight: 600,
     title: 'ARKON',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -24,7 +24,7 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

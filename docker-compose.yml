@@ -53,6 +53,27 @@ services:
       - ./backend:/app
       - storage_data:/app/storage
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: arkon-worker
+    command: python -m worker.main
+    environment:
+      DATABASE_URL: postgresql+asyncpg://arkon:arkon@postgres:5432/arkon
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./worker:/app/worker
+      - storage_data:/app/storage
+
   nats:
     image: nats:2-alpine
     container_name: arkon-nats

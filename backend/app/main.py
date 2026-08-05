@@ -1,6 +1,7 @@
 """ARKON Backend - AI Agent Operating Platform.
 
 FastAPI application entry point.
+Uses the Kernel for bootstrapping all infrastructure.
 """
 
 from contextlib import asynccontextmanager
@@ -11,14 +12,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import get_logger, setup_logging
-from app.database.engine import create_engine, dispose_engine
+from app.kernel.bootstrap import bootstrap_kernel, shutdown_kernel
 
 logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: startup and shutdown."""
+    """Application lifespan: startup and shutdown via Kernel."""
     # Startup
     setup_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
     logger.info(
@@ -26,11 +27,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         version=settings.APP_VERSION,
         environment=settings.ENVIRONMENT,
     )
-    await create_engine()
-    logger.info("database_connected")
+
+    # Bootstrap the kernel (this initializes all infrastructure)
+    kernel = await bootstrap_kernel()
+    logger.info(
+        "kernel_bootstrapped",
+        state=kernel.state.value,
+        module_count=len(kernel.registry),
+    )
+
     yield
+
     # Shutdown
-    await dispose_engine()
+    await shutdown_kernel()
     logger.info("arkon_stopped")
 
 

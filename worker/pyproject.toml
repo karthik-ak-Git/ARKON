@@ -1,0 +1,14 @@
+[project]
+name = "arkon-worker"
+version = "0.1.0"
+description = "ARKON Background Worker"
+requires-python = ">=3.13"
+dependencies = [
+    "arkon-backend",
+    "redis[hiredis]>=5.2.0",
+    "nats-py>=2.9.0",
+    "structlog>=24.4.0",
+]
+
+[project.scripts]
+arkon-worker = "worker.main:main"

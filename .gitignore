@@ -1,14 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
 # Backend
 backend/.env
 backend/storage/
-backend/__pycache__/
-backend/**/__pycache__/
-backend/.pytest_cache/
-backend/.mypy_cache/
-backend/.ruff_cache/
-backend/*.egg-info/
-backend/dist/
-backend/build/
 
 # Node
 node_modules/
@@ -17,6 +25,17 @@ release/
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+bun.lock
+
+# Desktop
+apps/desktop/node_modules/
+apps/desktop/dist/
+apps/desktop/release/
+
+# Hidden directories (not for public repo)
+packages/
+docs/
+plugins/
 
 # IDE
 .vscode/
@@ -27,8 +46,3 @@ yarn.lock
 # OS
 .DS_Store
 Thumbs.db
-
-# Desktop app
-desktop/node_modules/
-desktop/dist/
-desktop/release/
