@@ -61,4 +61,12 @@ export interface EventMessage {
   data?: any;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  lastMessage: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type ViewType = 'dashboard' | 'projects' | 'agents' | 'workflows' | 'plugins' | 'settings';

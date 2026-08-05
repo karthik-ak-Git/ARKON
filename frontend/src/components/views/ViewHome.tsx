@@ -30,11 +30,6 @@ export function ViewHome() {
           Spawn Agent
         </button>
       </div>
-      
-      <div className="mt-16 text-sm text-gray-400 dark:text-gray-500/70 font-light flex flex-col items-center gap-4 w-full max-w-sm">
-        <div className="w-full text-left font-medium text-[13px] tracking-wide uppercase text-gray-400 dark:text-gray-600 mb-2 border-b border-gray-200 dark:border-white/10 pb-2">Recent Workspaces</div>
-        <div className="w-full text-left italic">No recent workspaces</div>
-      </div>
     </div>
   );
 }

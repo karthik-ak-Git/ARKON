@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Agent, Project, Plugin, Workflow, EventMessage } from '../types';
+import { Agent, Project, Plugin, Workflow, EventMessage, Workspace } from '../types';
 
-export type SidebarItem = 'home' | 'projects' | 'agents' | 'workflows' | 'plugins' | 'settings';
+export type SidebarItem = 'home' | 'projects' | 'agents' | 'workflows' | 'plugins' | 'chat' | 'settings';
 
 interface ArkonState {
   // App State
@@ -18,6 +18,13 @@ interface ArkonState {
   plugins: Plugin[];
   workflows: Workflow[];
   events: EventMessage[];
+  
+  // Workspace / Chat History
+  workspaces: Workspace[];
+  activeWorkspaceId: string | null;
+  addWorkspace: (name: string) => void;
+  setActiveWorkspace: (id: string) => void;
+  deleteWorkspace: (id: string) => void;
   
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
   addAgent: (agent: Omit<Agent, 'id' | 'createdAt' | 'cpuUsage' | 'memoryUsage'>) => void;
@@ -41,6 +48,28 @@ export const useArkonStore = create<ArkonState>((set) => ({
   workflows: [],
   events: [],
   
+  // Workspace / Chat History
+  workspaces: [],
+  activeWorkspaceId: null,
+  addWorkspace: (name) => set((state) => {
+    const newWorkspace: Workspace = {
+      id: uuidv4(),
+      name,
+      lastMessage: 'New conversation',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    return {
+      workspaces: [newWorkspace, ...state.workspaces],
+      activeWorkspaceId: newWorkspace.id,
+    };
+  }),
+  setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
+  deleteWorkspace: (id) => set((state) => ({
+    workspaces: state.workspaces.filter((w) => w.id !== id),
+    activeWorkspaceId: state.activeWorkspaceId === id ? null : state.activeWorkspaceId,
+  })),
+  
   addProject: (project) => set((state) => ({
     projects: [...state.projects, { ...project, id: uuidv4(), createdAt: Date.now(), updatedAt: Date.now() }]
   })),
@@ -61,5 +90,3 @@ export const useArkonStore = create<ArkonState>((set) => ({
     agents: state.agents.map(a => a.id === id ? { ...a, cpuUsage, memoryUsage } : a)
   }))
 }));
-
-
