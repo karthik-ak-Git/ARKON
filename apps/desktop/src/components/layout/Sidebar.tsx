@@ -1,7 +1,7 @@
 import React from 'react';
 import { useArkonStore, SidebarItem } from '../../store/useArkonStore';
 import { cn } from '../../lib/utils';
-import { Home, FolderGit2, Bot, GitMerge, Blocks, Settings, MessageSquare } from 'lucide-react';
+import { Home, FolderGit2, Bot, GitMerge, Blocks, Settings, MessageSquare, Activity, Layers, Server } from 'lucide-react';
 
 export function Sidebar() {
   const { activeSidebarItem, setActiveSidebarItem } = useArkonStore();
@@ -12,6 +12,8 @@ export function Sidebar() {
     { id: 'projects', icon: FolderGit2, label: 'Projects' },
     { id: 'agents', icon: Bot, label: 'Agents' },
     { id: 'workflows', icon: GitMerge, label: 'Workflows' },
+    { id: 'execution', icon: Activity, label: 'Execution' },
+    { id: 'resources', icon: Server, label: 'Resources' },
     { id: 'plugins', icon: Blocks, label: 'Plugins' },
   ];
 

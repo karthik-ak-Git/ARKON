@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.workspace import WorkspaceManager
     from app.api.workspaces import set_manager
 
-    workspace_manager = WorkspaceManager(base_path=settings.DATA_DIR)
+    workspace_manager = WorkspaceManager(base_path=settings.STORAGE_PATH)
     set_manager(workspace_manager)
     logger.info("workspace_manager_initialized")
 
@@ -72,12 +72,27 @@ def create_app() -> FastAPI:
     )
 
     # Register routers
-    from app.api import agents_router, health_router, projects_router, workspaces_router
+    from app.api import (
+        agents_router,
+        ai_router,
+        execution_router,
+        execution_ws_router,
+        health_router,
+        projects_router,
+        runtime_router,
+        runtime_ws_router,
+        workspaces_router,
+    )
 
     app.include_router(health_router)
     app.include_router(workspaces_router, prefix=settings.API_V1_PREFIX)
     app.include_router(projects_router, prefix=settings.API_V1_PREFIX)
     app.include_router(agents_router, prefix=settings.API_V1_PREFIX)
+    app.include_router(ai_router)
+    app.include_router(execution_router)
+    app.include_router(execution_ws_router)
+    app.include_router(runtime_router)
+    app.include_router(runtime_ws_router)
 
     return app
 

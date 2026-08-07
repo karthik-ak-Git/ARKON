@@ -1,0 +1,92 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
+  "productName": "ARKON",
+  "version": "1.0.0",
+  "identifier": "com.arkon.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev:vite",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "npm run build:vite",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ARKON",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 600,
+        "decorations": true,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false,
+      "tooltip": "ARKON"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "updater"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "both",
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English"]
+      }
+    },
+    "resources": [
+      "../backend/dist/backend.exe",
+      "../backend/dist/**/*"
+    ],
+    "externalBin": []
+  },
+  "plugins": {
+    "shell": {
+      "open": true,
+      "scope": [
+        {
+          "name": "backend",
+          "cmd": "../backend/dist/backend.exe",
+          "args": ["--port", "8000"],
+          "sidecar": false
+        }
+      ]
+    },
+    "dialog": {
+      "all": false,
+      "open": true,
+      "save": true,
+      "message": false,
+      "ask": false,
+      "confirm": false
+    },
+    "fs": {
+      "scope": {
+        "allow": [
+          "$APPDATA/**",
+          "$DOWNLOAD/**",
+          "$DESKTOP/**"
+        ],
+        "deny": []
+      }
+    },
+    "os": {
+      "all": true
+    }
+  }
+}

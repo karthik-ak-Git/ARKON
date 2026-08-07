@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useAIChat, useAIProviders } from '../../api/hooks';
 import { useArkonStore } from '../../store/useArkonStore';
-import { api } from '../../lib/api';
-import { MessageSquare, Send, User, Bot } from 'lucide-react';
+import type { AIChatResponse } from '../../api/types';
+import { MessageSquare, Send, User, Bot, Loader2 } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -11,20 +12,22 @@ interface Message {
 }
 
 export function ViewChat() {
-  const { activeWorkspaceId, workspaces } = useArkonStore();
+  const { activeWorkspaceId } = useArkonStore();
+  const chatMutation = useAIChat();
+  const { data: providersData } = useAIProviders();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
+  const providers = providersData?.providers || [];
+  const hasProvider = providers.some((p) => p.enabled && p.has_api_key);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isSending) return;
+  const handleSend = () => {
+    if (!input.trim() || chatMutation.isPending) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -33,25 +36,42 @@ export function ViewChat() {
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const allMessages = [...messages, userMessage];
+    setMessages(allMessages);
     setInput('');
-    setIsSending(true);
 
-    // TODO: Replace with actual backend chat endpoint (Phase 2)
-    // For now, show a placeholder
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Backend chat endpoint not yet implemented. Message received: "${userMessage.content}"`,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsSending(false);
-    }, 300);
+    chatMutation.mutate(
+      {
+        messages: allMessages.map((m) => ({ role: m.role, content: m.content })),
+      },
+      {
+        onSuccess: (response: AIChatResponse) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: response.content,
+              timestamp: Date.now(),
+            },
+          ]);
+        },
+        onError: (err) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: `Error: ${err.message}. Configure an AI provider in Settings.`,
+              timestamp: Date.now(),
+            },
+          ]);
+        },
+      },
+    );
   };
 
-  if (!activeWorkspace) {
+  if (!activeWorkspaceId) {
     return (
       <div className="flex flex-col items-center justify-center pt-[10vh] animate-in fade-in zoom-in-95 duration-500 ease-out">
         <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-6">
@@ -69,8 +89,10 @@ export function ViewChat() {
     <div className="flex flex-col h-full animate-in fade-in duration-300">
       {/* Header */}
       <div className="pb-4 mb-4 border-b border-gray-200 dark:border-white/5">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">{activeWorkspace.name}</h2>
-        <p className="text-[13px] text-gray-400 dark:text-gray-500">Workspace chat</p>
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Chat</h2>
+        <p className="text-[13px] text-gray-400 dark:text-gray-500">
+          {hasProvider ? 'Connected to AI provider' : 'No AI provider configured — go to Settings'}
+        </p>
       </div>
 
       {/* Messages */}
@@ -81,6 +103,9 @@ export function ViewChat() {
               <MessageSquare className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
             </div>
             <p className="text-[14px] text-gray-400 dark:text-gray-500">Start a conversation</p>
+            <p className="text-[13px] text-gray-400 dark:text-gray-500 mt-1">
+              {hasProvider ? 'Type a message below' : 'Requires AI provider configured in Settings'}
+            </p>
           </div>
         ) : (
           messages.map((msg) => (
@@ -105,6 +130,16 @@ export function ViewChat() {
             </div>
           ))
         )}
+        {chatMutation.isPending && (
+          <div className="flex gap-3">
+            <div className="w-7 h-7 rounded-lg bg-gray-900 dark:bg-white flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-white dark:text-gray-900" strokeWidth={1.5} />
+            </div>
+            <div className="px-4 py-2.5 rounded-2xl bg-gray-100 dark:bg-white/5">
+              <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -117,12 +152,12 @@ export function ViewChat() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type a message..."
-            disabled={isSending}
+            disabled={chatMutation.isPending}
             className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-white/20 disabled:opacity-50"
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isSending}
+            disabled={!input.trim() || chatMutation.isPending}
             className="w-10 h-10 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:opacity-40"
           >
             <Send className="w-4 h-4" strokeWidth={1.5} />

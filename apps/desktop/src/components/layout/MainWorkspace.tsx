@@ -6,6 +6,10 @@ import { ViewChat } from '../views/ViewChat';
 import { ViewProjects } from '../views/ViewProjects';
 import { ViewAgents } from '../views/ViewAgents';
 import { ViewWorkflows } from '../views/ViewWorkflows';
+import { ViewSettings } from '../views/ViewSettings';
+import { ViewExecution } from '../views/ViewExecution';
+import { ViewPlugins } from '../views/ViewPlugins';
+import { ViewResources } from '../views/ViewResources';
 
 export function MainWorkspace() {
   const { activeSidebarItem } = useArkonStore();
@@ -22,14 +26,18 @@ export function MainWorkspace() {
         return <ViewAgents />;
       case 'workflows':
         return <ViewWorkflows />;
+      case 'execution':
+        return <ViewExecution />;
+      case 'resources':
+        return <ViewResources />;
       case 'plugins':
-        return <div className="text-gray-500 font-light mt-20 text-center">No plugins installed.</div>;
+        return <ViewPlugins />;
       case 'settings':
-        return <div className="text-gray-500 font-light mt-20 text-center">Settings</div>;
+        return <ViewSettings />;
       default:
         return <ViewHome />;
     }
-  };
+  };;
 
   return (
     <div className="flex-1 h-full flex flex-col relative overflow-hidden">
