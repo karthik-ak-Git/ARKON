@@ -1,8 +1,167 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use arkon_lib::BackendState;
+use arkon_lib::{BackendState, BackendStatus, HealthCheck};
 use tauri::Manager;
+use tauri::State;
+use tokio::process::Command;
+
+// ── Tauri Commands ────────────────────────────────────────────────
+
+#[tauri::command]
+async fn start_backend(
+    state: State<'_, BackendState>,
+    app_handle: tauri::AppHandle,
+) -> Result<BackendStatus, String> {
+    let port = state.port;
+    let pid = {
+        let mut child_guard = state.child.lock().map_err(|e| e.to_string())?;
+
+        if child_guard.is_some() {
+            return Ok(BackendStatus {
+                running: true,
+                port,
+                pid: child_guard.as_ref().and_then(|c| c.id()),
+            });
+        }
+
+        let exe_path = arkon_lib::backend_exe_path(&app_handle);
+        let python_path = arkon_lib::python_runtime_path(&app_handle);
+
+        if !exe_path.exists() {
+            return Err(format!(
+                "Backend executable not found at: {}",
+                exe_path.display()
+            ));
+        }
+
+        let mut cmd = Command::new(&exe_path);
+        cmd.arg("--port").arg(port.to_string());
+
+        if python_path.exists() {
+            cmd.env("PYTHONHOME", &python_path);
+            cmd.env("PYTHONPATH", python_path.join("lib").join("python3.13"));
+        }
+
+        let data_dir = dirs::data_local_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("arkon");
+        std::fs::create_dir_all(&data_dir).ok();
+        cmd.env("STORAGE_PATH", data_dir.join("workspace"));
+        cmd.env("DATABASE_URL", "sqlite+aiosqlite:///.arkon/arkon.db");
+
+        let child = cmd
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| format!("Failed to start backend: {}", e))?;
+
+        let pid = child.id();
+        *child_guard = Some(child);
+        pid
+    };
+
+    log::info!("Backend started on port {}", port);
+
+    Ok(BackendStatus {
+        running: true,
+        port,
+        pid,
+    })
+}
+
+#[tauri::command]
+async fn stop_backend(state: State<'_, BackendState>) -> Result<BackendStatus, String> {
+    let port = state.port;
+    let child_opt = {
+        let mut child_guard = state.child.lock().map_err(|e| e.to_string())?;
+        child_guard.take()
+    };
+
+    if let Some(mut child) = child_opt {
+        child
+            .kill()
+            .await
+            .map_err(|e| format!("Failed to stop backend: {}", e))?;
+        log::info!("Backend stopped");
+    }
+
+    Ok(BackendStatus {
+        running: false,
+        port,
+        pid: None,
+    })
+}
+
+#[tauri::command]
+async fn get_backend_status(state: State<'_, BackendState>) -> Result<BackendStatus, String> {
+    let child_guard = state.child.lock().map_err(|e| e.to_string())?;
+
+    Ok(BackendStatus {
+        running: child_guard.is_some(),
+        port: state.port,
+        pid: child_guard.as_ref().and_then(|c| c.id()),
+    })
+}
+
+#[tauri::command]
+async fn check_backend_health(state: State<'_, BackendState>) -> Result<HealthCheck, String> {
+    let url = format!("http://127.0.0.1:{}/health", state.port);
+
+    match reqwest::get(&url).await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                Ok(HealthCheck {
+                    healthy: true,
+                    message: "Backend is healthy".to_string(),
+                })
+            } else {
+                Ok(HealthCheck {
+                    healthy: false,
+                    message: format!("Backend returned status: {}", resp.status()),
+                })
+            }
+        }
+        Err(e) => Ok(HealthCheck {
+            healthy: false,
+            message: format!("Cannot reach backend: {}", e),
+        }),
+    }
+}
+
+#[tauri::command]
+fn get_backend_port(state: State<'_, BackendState>) -> u16 {
+    state.port
+}
+
+#[tauri::command]
+async fn auto_start_backend(
+    state: State<'_, BackendState>,
+    app_handle: tauri::AppHandle,
+) -> Result<BackendStatus, String> {
+    let port = state.port;
+    let already_running = {
+        let guard = state.child.lock().map_err(|e| e.to_string())?;
+        guard.is_some()
+    };
+
+    if !already_running {
+        start_backend(state.clone(), app_handle).await?;
+    }
+
+    let healthy = arkon_lib::wait_for_backend(port, 30).await;
+    if !healthy {
+        return Err("Backend failed to start within 30 seconds".to_string());
+    }
+
+    let guard = state.child.lock().map_err(|e| e.to_string())?;
+    Ok(BackendStatus {
+        running: true,
+        port,
+        pid: guard.as_ref().and_then(|c| c.id()),
+    })
+}
+
+// ── Entry Point ───────────────────────────────────────────────────
 
 fn main() {
     tauri::Builder::default()
@@ -12,7 +171,6 @@ fn main() {
         .plugin(tauri_plugin_os::init())
         .manage(arkon_lib::create_backend_state(8000))
         .setup(|app| {
-            // Setup directories on first launch
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -33,7 +191,6 @@ fn main() {
             std::fs::create_dir_all(app_data_dir.join("exports"))
                 .expect("Failed to create exports dir");
 
-            // Write default config files if they don't exist
             let config_dir = app_data_dir.join("config");
 
             if !config_dir.join("settings.json").exists() {
@@ -63,11 +220,6 @@ fn main() {
                         "frontend_log": "logs/frontend.log",
                         "max_size_mb": 50,
                         "backup_count": 5
-                    },
-                    "updates": {
-                        "auto_check": true,
-                        "channel": "stable",
-                        "check_interval_hours": 24
                     },
                     "database": {
                         "type": "sqlite",
@@ -113,59 +265,26 @@ fn main() {
                 .expect("Failed to write plugins.json");
             }
 
-            // Get app handle for monitoring
-            let handle = app.handle().clone();
-            let state: tauri::State<BackendState> = handle.state();
-
-            // Start backend monitoring in background
-            let monitor_state = BackendState {
-                child: std::sync::Mutex::new(None),
-                port: state.port,
-                shutdown_tx: state.shutdown_tx.clone(),
-            };
-
-            tauri::async_runtime::spawn(async move {
-                // Auto-start backend
-                log::info!("Auto-starting backend...");
-                match arkon_lib::auto_start_backend(
-                    tauri::State::new(&monitor_state),
-                    handle.clone(),
-                )
-                .await
-                {
-                    Ok(status) => {
-                        log::info!("Backend started: {:?}", status);
-                        // Move the child to the managed state
-                        // (In production, this would be done differently)
-                    }
-                    Err(e) => {
-                        log::error!("Failed to auto-start backend: {}", e);
-                    }
-                }
-
-                // Start monitoring
-                arkon_lib::monitor_backend(&monitor_state, handle).await;
-            });
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            arkon_lib::start_backend,
-            arkon_lib::stop_backend,
-            arkon_lib::get_backend_status,
-            arkon_lib::check_backend_health,
-            arkon_lib::get_backend_port,
-            arkon_lib::auto_start_backend,
+            start_backend,
+            stop_backend,
+            get_backend_status,
+            check_backend_health,
+            get_backend_port,
+            auto_start_backend,
         ])
-        .on_event(|app_handle, event| {
-            if let tauri::Event::ExitRequested { .. } = event {
-                // Graceful shutdown
-                let state: tauri::State<BackendState> = app_handle.state();
-                tauri::async_runtime::block_on(async {
-                    arkon_lib::shutdown_backend(&state).await;
-                });
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                let state: State<BackendState> = app_handle.state();
+                // Drop child — kill_on_drop(true) handles the kill
+                let mut guard = state.child.lock().unwrap_or_else(|e| e.into_inner());
+                if guard.take().is_some() {
+                    log::info!("Shutting down backend gracefully...");
+                }
             }
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        });
 }

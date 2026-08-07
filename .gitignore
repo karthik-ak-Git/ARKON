@@ -1,4 +1,8 @@
-# Python
+# ============================================
+# ARKON — .gitignore
+# ============================================
+
+# ── Python ──────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,12 +17,14 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+coverage/
 
-# Backend
+# ── Backend ─────────────────────────────────
 backend/.env
 backend/storage/
 
-# Node
+# ── Node ────────────────────────────────────
 node_modules/
 dist/
 release/
@@ -27,22 +33,56 @@ package-lock.json
 yarn.lock
 bun.lock
 
-# Desktop
+# ── Desktop (Tauri) ────────────────────────
 apps/desktop/node_modules/
 apps/desktop/dist/
 apps/desktop/release/
 
-# Hidden directories (not for public repo)
+# ── Rust / Tauri ───────────────────────────
+target/
+src-tauri/target/
+src-tauri/gen/
+Cargo.lock
+
+# ── Vite ────────────────────────────────────
+.vite/
+
+# ── Logs ────────────────────────────────────
+logs/
+*.log
+
+# ── Hidden directories (not for public repo)
 packages/
 docs/
 plugins/
 
-# IDE
+# ── IDE ─────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# ── OS ──────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ── Build outputs ───────────────────────────
+release/
+artifacts/
+generated/
+temp/
+tmp/
+
+# ── Generated binaries ─────────────────────
+*.exe
+*.msi
+*.dll
+*.obj
+*.o
+*.pdb
+
+# ── Archives ────────────────────────────────
+*.zip
+*.7z
+*.tar
+*.gz
