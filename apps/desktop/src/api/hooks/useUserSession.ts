@@ -60,7 +60,8 @@ export function useUserSession() {
   useEffect(() => {
     const saved = loadUserSession();
     if (saved) {
-      setSession({ ...saved, isValid: false });
+      // Default to valid if we have a session - validation will update if needed
+      setSession({ ...saved, isValid: true });
     }
   }, []);
 

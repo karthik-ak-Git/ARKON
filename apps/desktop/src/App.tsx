@@ -44,12 +44,16 @@ function AppContent() {
     return <OnboardingWizard onComplete={() => window.location.reload()} />;
   }
 
-  // Onboarding complete but no valid session — show wizard to reconfigure
-  if (onboarding && onboarding.completed && !isLoggedIn) {
-    return <OnboardingWizard onComplete={() => window.location.reload()} />;
+  // Onboarding complete — go to app (session validation happens in background)
+  if (onboarding && onboarding.completed) {
+    return (
+      <WebSocketProvider>
+        <ClaudeLayout />
+      </WebSocketProvider>
+    );
   }
 
-  // Normal app
+  // Fallback
   return (
     <WebSocketProvider>
       <ClaudeLayout />

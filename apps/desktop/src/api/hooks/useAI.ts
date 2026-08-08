@@ -14,8 +14,9 @@ export function useAIProviderHealth() {
   return useQuery({
     queryKey: ['ai', 'providers', 'health'],
     queryFn: () => aiApi.getAllProvidersHealth(),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: 60_000,
+    refetchInterval: 120_000, // 2 minutes instead of 30 seconds
+    refetchIntervalInBackground: false,
   });
 }
 
