@@ -12,7 +12,7 @@ from app.ai.exceptions import (
     NoProviderAvailableError,
     ProviderNotFoundError,
 )
-from app.ai.interfaces import ChatRequest, MessageRole, ProviderConfig, ProviderType, RoutingPolicy
+from app.ai.interfaces import ChatRequest, ChatMessage, MessageRole, ProviderConfig, ProviderType, RoutingPolicy
 from app.ai.manager import ProviderManager
 from app.ai.models import (
     ChatCompletionRequest,
@@ -260,7 +260,7 @@ async def chat_completion(req: ChatCompletionRequest) -> ChatCompletionResponse:
     router_instance = _get_router()
 
     messages = [
-        ChatRequest.Message(role=MessageRole(m.role), content=m.content)
+        ChatMessage(role=MessageRole(m.role), content=m.content)
         for m in req.messages
     ]
 
