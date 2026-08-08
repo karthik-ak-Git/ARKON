@@ -44,3 +44,11 @@ export {
   useUpdateOnboardingStep,
   useResetOnboarding,
 } from './useOnboarding';
+export {
+  useUserSession,
+  useAutoLogin,
+  saveUserSession,
+  loadUserSession,
+  clearUserSession,
+} from './useUserSession';
+export type { UserSession } from './useUserSession';

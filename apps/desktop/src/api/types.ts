@@ -287,6 +287,10 @@ export interface OnboardingData {
   providers_configured: string[];
   routing_policy: string;
   thinking_profile: string;
+  // User session info
+  user_id: string | null;
+  user_email: string | null;
+  user_name: string | null;
 }
 
 export interface OnboardingStatus {

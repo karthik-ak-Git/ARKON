@@ -32,6 +32,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     providers_configured: [],
     routing_policy: 'local_first',
     thinking_profile: 'balanced',
+    user_id: null,
+    user_email: null,
+    user_name: null,
   });
 
   const createWorkspace = useCreateWorkspace();

@@ -28,6 +28,10 @@ class OnboardingData(BaseModel):
     providers_configured: list[str] = Field(default_factory=list)
     routing_policy: str = "local_first"
     thinking_profile: str = "balanced"
+    # User session info
+    user_id: str | None = None
+    user_email: str | None = None
+    user_name: str | None = None
 
 
 class OnboardingStatus(BaseModel):
