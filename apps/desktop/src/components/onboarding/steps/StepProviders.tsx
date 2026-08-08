@@ -84,6 +84,8 @@ export function StepProviders({ data, onUpdate, onNext, onBack, registerProvider
       
       setSuccess(true);
       onUpdate({ providers_configured: [...new Set([...data.providers_configured, selected])] });
+      // Auto-advance to next step after successful registration
+      onNext();
     } catch {
       setError('Failed to register provider');
     } finally {
