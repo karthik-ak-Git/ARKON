@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useCreateWorkspace } from '../../api/hooks/useWorkspaces';
-import { useRegisterAIProvider, useSetAIRoutingPolicy } from '../../api/hooks/useAI';
+import { useRegisterAIProvider, useSetAIRoutingPolicy, useAIProviderHealth } from '../../api/hooks/useAI';
 import { useCompleteOnboarding } from '../../api/hooks/useOnboarding';
 import type { OnboardingData } from '../../api/types';
 import { StepWelcome } from './steps/StepWelcome';
@@ -36,6 +36,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
   const createWorkspace = useCreateWorkspace();
   const registerProvider = useRegisterAIProvider();
+  const providerHealth = useAIProviderHealth();
   const setRouting = useSetAIRoutingPolicy();
   const completeOnboarding = useCompleteOnboarding();
 
@@ -78,6 +79,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             onNext={goNext}
             onBack={goBack}
             registerProvider={registerProvider}
+            providerHealth={providerHealth}
           />
         );
       case 3:
@@ -105,6 +107,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             data={data}
             onNext={goNext}
             onBack={goBack}
+            providerHealth={providerHealth}
           />
         );
       case 6:

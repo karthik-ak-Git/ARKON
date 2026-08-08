@@ -3,9 +3,10 @@
  * Configure at least one AI provider (OpenAI, Anthropic, Ollama, etc.)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { OnboardingData } from '../../../api/types';
 import type { UseMutationResult } from '@tanstack/react-query';
+import { useAIModels, useAIProviderHealth } from '../../../api/hooks/useAI';
 
 interface StepProvidersProps {
   data: OnboardingData;
@@ -19,6 +20,7 @@ interface StepProvidersProps {
     api_key?: string;
     enabled?: boolean;
   }>;
+  providerHealth: ReturnType<typeof useAIProviderHealth>;
 }
 
 const PRESETS = [
@@ -30,14 +32,24 @@ const PRESETS = [
   { id: 'together', type: 'cloud', name: 'Together AI', placeholder: '' },
 ];
 
-export function StepProviders({ data, onUpdate, onNext, onBack, registerProvider }: StepProvidersProps) {
+export function StepProviders({ data, onUpdate, onNext, onBack, registerProvider, providerHealth }: StepProvidersProps) {
   const [selected, setSelected] = useState<string>(data.providers_configured[0] ?? '');
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [models, setModels] = useState<string[]>([]);
+  const { data: modelsData, refetch: refetchModels } = useAIModels(selected || undefined);
 
   const selectedPreset = PRESETS.find(p => p.id === selected);
   const isLocal = selectedPreset?.type === 'local';
+
+  // Extract models from modelsData
+  useEffect(() => {
+    if (modelsData?.models) {
+      setModels(modelsData.models.map(m => m.model_id));
+    }
+  }, [modelsData]);
 
   const handleAdd = async () => {
     if (!selected) {
@@ -50,6 +62,8 @@ export function StepProviders({ data, onUpdate, onNext, onBack, registerProvider
     }
 
     setError('');
+    setSuccess(false);
+    setTestingProvider(selected);
     try {
       await registerProvider.mutateAsync({
         provider_id: selected,
@@ -58,10 +72,22 @@ export function StepProviders({ data, onUpdate, onNext, onBack, registerProvider
         api_key: isLocal ? undefined : apiKey.trim(),
         enabled: true,
       });
+      
+      // Wait a bit for provider to be ready, then check health and list models
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Trigger health check refetch
+      providerHealth.refetch();
+      
+      // Fetch models
+      await refetchModels();
+      
       setSuccess(true);
       onUpdate({ providers_configured: [...new Set([...data.providers_configured, selected])] });
     } catch {
       setError('Failed to register provider');
+    } finally {
+      setTestingProvider(null);
     }
   };
 
@@ -114,6 +140,46 @@ export function StepProviders({ data, onUpdate, onNext, onBack, registerProvider
 
         {error && <p className="text-xs text-red-400">{error}</p>}
         {success && <p className="text-xs text-green-400">Provider registered</p>}
+
+        {/* Provider health status */}
+        {selected && providerHealth.data && providerHealth.data[selected] && (
+          <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`w-2 h-2 rounded-full ${
+                providerHealth.data[selected].status === 'available' ? 'bg-green-400' :
+                providerHealth.data[selected].status === 'degraded' ? 'bg-yellow-400' : 'bg-red-400'
+              }`} />
+              <span className="text-white/70 capitalize">{providerHealth.data[selected].status}</span>
+              {providerHealth.data[selected].latency_ms > 0 && (
+                <span className="text-xs text-white/40 ml-auto">{providerHealth.data[selected].latency_ms.toFixed(0)}ms</span>
+              )}
+            </div>
+            {providerHealth.data[selected].error && (
+              <p className="text-xs text-red-400 mt-1">{providerHealth.data[selected].error}</p>
+            )}
+          </div>
+        )}
+
+        {/* Models list */}
+        {selected && models.length > 0 && (
+          <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+            <p className="text-xs text-white/30 uppercase tracking-wider mb-2">Available Models</p>
+            <div className="flex flex-wrap gap-1.5">
+              {models.map((model, i) => (
+                <span key={`${selected}-${i}`} className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white/70">
+                  {model}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {testingProvider && (
+          <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg flex items-center gap-2 text-xs text-white/50">
+            <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
+            Testing connection...
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-8">

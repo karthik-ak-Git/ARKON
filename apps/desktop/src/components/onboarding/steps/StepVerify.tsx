@@ -5,11 +5,13 @@
 
 import { useState, useEffect } from 'react';
 import type { OnboardingData } from '../../../api/types';
+import type { UseQueryResult } from '@tanstack/react-query';
 
 interface StepVerifyProps {
   data: OnboardingData;
   onNext: () => void;
   onBack: () => void;
+  providerHealth: UseQueryResult<Record<string, { provider_id: string; status: string; latency_ms: number; error: string }>, Error>;
 }
 
 type CheckStatus = 'pending' | 'running' | 'pass' | 'fail' | 'skip';
@@ -21,11 +23,12 @@ interface Check {
   detail?: string;
 }
 
-export function StepVerify({ data, onNext, onBack }: StepVerifyProps) {
+export function StepVerify({ data, onNext, onBack, providerHealth }: StepVerifyProps) {
   const [checks, setChecks] = useState<Check[]>([
     { id: 'backend', label: 'Backend connection', status: 'pending' },
     { id: 'workspace', label: 'Workspace created', status: 'pending' },
     { id: 'provider', label: 'AI provider registered', status: 'pending' },
+    { id: 'provider_health', label: 'Provider health check', status: 'pending' },
     { id: 'routing', label: 'Routing policy set', status: 'pending' },
   ]);
 
@@ -67,7 +70,40 @@ export function StepVerify({ data, onNext, onBack }: StepVerifyProps) {
         update('provider', 'skip', 'No providers configured');
       }
 
-      // 4. Routing check
+      // 4. Provider health check (actual connectivity test)
+      update('provider_health', 'running');
+      if (data.providers_configured.length > 0) {
+        // Wait for health data if still loading
+        if (providerHealth.isLoading) {
+          update('provider_health', 'running', 'Checking...');
+        }
+        
+        const healthData = providerHealth.data;
+        if (healthData) {
+          const configuredHealth = data.providers_configured.map(pid => healthData[pid]).filter(Boolean);
+          if (configuredHealth.length > 0) {
+            const allAvailable = configuredHealth.every(h => h.status === 'available');
+            const anyError = configuredHealth.some(h => h.status === 'error' || h.error);
+            
+            if (allAvailable) {
+              update('provider_health', 'pass', 'All providers healthy');
+            } else if (anyError) {
+              const errors = configuredHealth.filter(h => h.error).map(h => `${h.provider_id}: ${h.error}`).join('; ');
+              update('provider_health', 'fail', errors || 'Provider connection failed');
+            } else {
+              update('provider_health', 'pass', 'Providers responding');
+            }
+          } else {
+            update('provider_health', 'fail', 'No health data for configured providers');
+          }
+        } else {
+          update('provider_health', 'skip', 'Health check not yet run');
+        }
+      } else {
+        update('provider_health', 'skip', 'No providers configured');
+      }
+
+      // 5. Routing check
       update('routing', 'running');
       update('routing', 'pass', data.routing_policy);
     };
@@ -75,7 +111,7 @@ export function StepVerify({ data, onNext, onBack }: StepVerifyProps) {
     // Small delay for UX
     const timer = setTimeout(runChecks, 500);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [data]);
+  }, [data, providerHealth.data, providerHealth.isLoading]);
 
   const allPassed = checks.every(c => c.status === 'pass' || c.status === 'skip');
   const anyFailed = checks.some(c => c.status === 'fail');
