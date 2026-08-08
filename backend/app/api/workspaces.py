@@ -258,8 +258,8 @@ async def list_workspaces() -> WorkspaceList:
                 name=ws.name,
                 description=ws.description,
                 state=ws.runtime_state.state,
-                path=ws.config.path,
-                tags=ws.config.tags,
+                path=ws.path,
+                tags=ws.tags,
                 created_at=ws.created_at,
                 updated_at=ws.updated_at,
             ))
