@@ -1,28 +1,22 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-
-type Theme = 'light' | 'dark'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 
 interface ThemeContextType {
-  theme: Theme
+  theme: 'light' | 'dark'
   toggleTheme: () => void
-  setTheme: (theme: Theme) => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('theme') as Theme) || 'dark'
-    }
-    return 'dark'
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('arkon-theme') as 'light' | 'dark') || 'dark'
   })
 
   useEffect(() => {
-    const root = window.document.documentElement
+    const root = document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
-    localStorage.setItem('theme', theme)
+    localStorage.setItem('arkon-theme', theme)
   }, [theme])
 
   const toggleTheme = () => {
@@ -30,7 +24,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   )

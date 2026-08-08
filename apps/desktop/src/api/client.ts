@@ -4,6 +4,7 @@
 
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 export const AI_BASE = import.meta.env.VITE_AI_URL || 'http://localhost:8000/ai';
+export const RUNTIME_BASE = import.meta.env.VITE_RUNTIME_URL || 'http://localhost:8000/api/runtime';
 export const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
 
 export class ApiError extends Error {

@@ -36,6 +36,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         module_count=len(kernel.registry),
     )
 
+    # Initialize database engine
+    from app.database.engine import create_engine, dispose_engine
+    await create_engine()
+    logger.info("database_engine_initialized")
+
     # Initialize workspace manager
     from app.workspace import WorkspaceManager
     from app.api.workspaces import set_manager
@@ -47,6 +52,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # Shutdown
+    from app.database.engine import dispose_engine
+    await dispose_engine()
     await shutdown_kernel()
     logger.info("arkon_stopped")
 
@@ -78,6 +85,7 @@ def create_app() -> FastAPI:
         execution_router,
         execution_ws_router,
         health_router,
+        onboarding_router,
         projects_router,
         runtime_router,
         runtime_ws_router,
@@ -85,6 +93,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(onboarding_router, prefix=settings.API_V1_PREFIX)
     app.include_router(workspaces_router, prefix=settings.API_V1_PREFIX)
     app.include_router(projects_router, prefix=settings.API_V1_PREFIX)
     app.include_router(agents_router, prefix=settings.API_V1_PREFIX)

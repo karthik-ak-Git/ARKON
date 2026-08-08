@@ -74,8 +74,8 @@ async def create_workspace(data: WorkspaceCreate) -> WorkspaceRead:
             name=workspace.name,
             description=workspace.description,
             state=workspace.runtime_state.state,
-            path=workspace.config.path,
-            tags=workspace.config.tags,
+            path=workspace.path,
+            tags=workspace.tags,
             created_at=workspace.created_at,
             updated_at=workspace.updated_at,
         )
@@ -96,8 +96,8 @@ async def open_workspace(workspace_id: str) -> WorkspaceRead:
             name=workspace.name,
             description=workspace.description,
             state=workspace.runtime_state.state,
-            path=workspace.config.path,
-            tags=workspace.config.tags,
+            path=workspace.path,
+            tags=workspace.tags,
             created_at=workspace.created_at,
             updated_at=workspace.updated_at,
         )
@@ -130,6 +130,38 @@ async def delete_workspace(workspace_id: str) -> dict:
         return {"status": "deleted", "workspace_id": workspace_id}
     except WorkspaceDeleteError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# =============================================================================
+# Update Operations
+# =============================================================================
+
+
+@router.patch("/{workspace_id}", response_model=WorkspaceRead)
+async def update_workspace(
+    workspace_id: str, data: WorkspaceUpdate
+) -> WorkspaceRead:
+    """Update workspace metadata (name, description, tags)."""
+    manager = get_manager()
+    try:
+        workspace = await manager.update(
+            workspace_id,
+            name=data.name,
+            description=data.description,
+            tags=data.tags,
+        )
+        return WorkspaceRead(
+            id=workspace.id,
+            name=workspace.name,
+            description=workspace.description,
+            state=workspace.runtime_state.state,
+            path=workspace.path,
+            tags=workspace.tags,
+            created_at=workspace.created_at,
+            updated_at=workspace.updated_at,
+        )
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # =============================================================================
@@ -268,8 +300,8 @@ async def get_workspace(workspace_id: str) -> WorkspaceRead:
         name=workspace.name,
         description=workspace.description,
         state=workspace.runtime_state.state,
-        path=workspace.config.path,
-        tags=workspace.config.tags,
+        path=workspace.path,
+        tags=workspace.tags,
         created_at=workspace.created_at,
         updated_at=workspace.updated_at,
     )

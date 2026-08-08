@@ -42,6 +42,7 @@ from app.workspace.exceptions import (
     WorkspaceAlreadyOpenError,
     WorkspaceCreateError,
     WorkspaceDeleteError,
+    WorkspaceNotFoundError,
     WorkspaceNotOpenError,
     WorkspaceOpenError,
 )
@@ -126,6 +127,7 @@ class WorkspaceManager:
                 name=name,
                 description=description,
                 base_path=path or f"{self._base_path}/workspaces/{workspace_id}",
+                tags=tags or [],
             )
 
             # Create workspace memory
@@ -342,12 +344,57 @@ class WorkspaceManager:
             raise WorkspaceNotOpenError(workspace_id)
 
         workspace = self._workspaces[workspace_id]
-        workspace.set_runtime_state("state", "open")
+        workspace._set_state(WorkspaceState.READY)
 
-        from app.workspace.events import WorkspaceResumed
-        await self._emit(WorkspaceResumed(
+        await self._emit(WorkspaceEvent(
+            event_type="resumed",
             workspace_id=workspace_id,
         ))
+
+    async def update(
+        self,
+        workspace_id: str,
+        name: str | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
+    ) -> Workspace:
+        """Update workspace metadata.
+
+        Args:
+            workspace_id: The workspace to update.
+            name: Optional new name.
+            description: Optional new description.
+            tags: Optional new tags.
+
+        Returns:
+            Updated workspace instance.
+
+        Raises:
+            WorkspaceNotFoundError: If workspace not found.
+        """
+        if workspace_id not in self._workspaces:
+            raise WorkspaceNotFoundError(workspace_id)
+
+        workspace = self._workspaces[workspace_id]
+
+        update_config: dict[str, Any] = {}
+        if name is not None:
+            workspace._name = name
+            update_config["name"] = name
+        if description is not None:
+            update_config["description"] = description
+        if tags is not None:
+            update_config["tags"] = tags
+
+        if update_config:
+            workspace.set_config(update_config)
+
+        # Save to disk
+        storage = WorkspaceStorage(workspace_id, self._base_path)
+        await self._save_workspace(workspace, storage)
+
+        logger.info("workspace_updated", workspace_id=workspace_id)
+        return workspace
 
         logger.info(
             "workspace_resumed",

@@ -278,6 +278,24 @@ export interface AIRoutingDecision {
 }
 
 // =============================================================================
+// Onboarding
+// =============================================================================
+
+export interface OnboardingData {
+  workspace_name: string | null;
+  workspace_description: string | null;
+  providers_configured: string[];
+  routing_policy: string;
+  thinking_profile: string;
+}
+
+export interface OnboardingStatus {
+  completed: boolean;
+  current_step: number;
+  data: OnboardingData;
+}
+
+// =============================================================================
 // WebSocket Events
 // =============================================================================
 

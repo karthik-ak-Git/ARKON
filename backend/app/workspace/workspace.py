@@ -41,6 +41,7 @@ class WorkspaceConfig:
     name: str = "default"
     description: str = ""
     base_path: str = ""
+    tags: list[str] = field(default_factory=list)
     plugins: list[str] = field(default_factory=list)
     settings: dict[str, Any] = field(default_factory=dict)
     auto_save: bool = True
@@ -50,12 +51,18 @@ class WorkspaceConfig:
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
+    @property
+    def path(self) -> str:
+        """Alias for base_path (compatibility with API routes)."""
+        return self.base_path
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "name": self.name,
             "description": self.description,
             "base_path": self.base_path,
+            "tags": self.tags,
             "plugins": self.plugins,
             "settings": self.settings,
             "auto_save": self.auto_save,
@@ -73,6 +80,7 @@ class WorkspaceConfig:
             name=data.get("name", "default"),
             description=data.get("description", ""),
             base_path=data.get("base_path", ""),
+            tags=data.get("tags", []),
             plugins=data.get("plugins", []),
             settings=data.get("settings", {}),
             auto_save=data.get("auto_save", True),
@@ -121,6 +129,19 @@ class WorkspaceMemory:
         memory._data = data.get("data", {})
         memory._created_at = data.get("created_at", time.time())
         return memory
+
+
+class _RuntimeStateProxy:
+    """Lightweight proxy over the runtime_state dict, exposing .state."""
+
+    __slots__ = ("_data",)
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._data = data
+
+    @property
+    def state(self) -> str:
+        return self._data.get("state", "created")
 
 
 @dataclass
@@ -174,6 +195,26 @@ class Workspace(IWorkspace):
     @property
     def last_activity(self) -> float:
         return self._last_activity
+
+    @property
+    def description(self) -> str:
+        return self._config.description
+
+    @property
+    def path(self) -> str:
+        return self._config.path
+
+    @property
+    def tags(self) -> list[str]:
+        return self._config.tags
+
+    @property
+    def updated_at(self) -> float:
+        return self._config.updated_at
+
+    @property
+    def runtime_state(self) -> _RuntimeStateProxy:
+        return _RuntimeStateProxy(self._runtime_state)
 
     @property
     def is_open(self) -> bool:

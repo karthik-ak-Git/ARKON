@@ -38,3 +38,9 @@ export {
   useDeleteRuntimeAgent,
   useExecuteRuntimeTask,
 } from './useRuntime';
+export {
+  useOnboardingStatus,
+  useCompleteOnboarding,
+  useUpdateOnboardingStep,
+  useResetOnboarding,
+} from './useOnboarding';

@@ -2,16 +2,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use arkon_lib::{BackendState, BackendStatus, HealthCheck};
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
 use tokio::process::Command;
 
-// ── Tauri Commands ────────────────────────────────────────────────
+// ── Backend Start Logic (non-Tauri, reusable) ─────────────────────
 
-#[tauri::command]
-async fn start_backend(
-    state: State<'_, BackendState>,
-    app_handle: tauri::AppHandle,
+async fn do_start_backend(
+    state: &BackendState,
+    app_handle: &tauri::AppHandle,
 ) -> Result<BackendStatus, String> {
     let port = state.port;
     let pid = {
@@ -25,8 +25,8 @@ async fn start_backend(
             });
         }
 
-        let exe_path = arkon_lib::backend_exe_path(&app_handle);
-        let python_path = arkon_lib::python_runtime_path(&app_handle);
+        let exe_path = arkon_lib::backend_exe_path(app_handle);
+        let python_path = arkon_lib::python_runtime_path(app_handle);
 
         if !exe_path.exists() {
             return Err(format!(
@@ -67,6 +67,16 @@ async fn start_backend(
         port,
         pid,
     })
+}
+
+// ── Tauri Commands ────────────────────────────────────────────────
+
+#[tauri::command]
+async fn start_backend(
+    state: State<'_, BackendState>,
+    app_handle: tauri::AppHandle,
+) -> Result<BackendStatus, String> {
+    do_start_backend(&state, &app_handle).await
 }
 
 #[tauri::command]
@@ -264,6 +274,112 @@ fn main() {
                 )
                 .expect("Failed to write plugins.json");
             }
+
+            // ── Auto-start backend + crash watcher ─────────────────
+            let handle = app.handle().clone();
+            let port = {
+                let state = handle.state::<BackendState>();
+                state.port
+            };
+
+            tauri::async_runtime::spawn({
+                let handle = handle.clone();
+                async move {
+                    // Emit: starting
+                    let _ = handle.emit("backend:status", serde_json::json!({
+                        "status": "starting",
+                        "port": port,
+                        "pid": null,
+                    }));
+
+                    // Start backend
+                    let state_ref = handle.state::<BackendState>();
+                    match do_start_backend(&state_ref, &handle).await {
+                        Ok(status) => {
+                            // Wait for health
+                            let healthy = arkon_lib::wait_for_backend(port, 30).await;
+                            if healthy {
+                                log::info!("Backend healthy on port {}", port);
+                                let _ = handle.emit("backend:status", serde_json::json!({
+                                    "status": "healthy",
+                                    "port": port,
+                                    "pid": status.pid,
+                                }));
+                            } else {
+                                log::warn!("Backend started but health check failed after 30s");
+                                let _ = handle.emit("backend:status", serde_json::json!({
+                                    "status": "error",
+                                    "port": port,
+                                    "pid": null,
+                                    "message": "Backend started but health check failed",
+                                }));
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to start backend: {}", e);
+                            let _ = handle.emit("backend:status", serde_json::json!({
+                                "status": "error",
+                                "port": port,
+                                "pid": null,
+                                "message": e,
+                            }));
+                            return;
+                        }
+                    }
+                    drop(state_ref);
+
+                    // Crash watcher — poll health, auto-restart on failure
+                    loop {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+                        let is_running = {
+                            let state_ref = handle.state::<BackendState>();
+                            let guard = state_ref.child.lock().unwrap_or_else(|e| e.into_inner());
+                            guard.is_some()
+                        };
+
+                        if !is_running {
+                            log::warn!("Backend process gone, restarting...");
+                            let _ = handle.emit("backend:status", serde_json::json!({
+                                "status": "restarting",
+                                "port": port,
+                                "pid": null,
+                            }));
+
+                            let state_ref = handle.state::<BackendState>();
+                            match do_start_backend(&state_ref, &handle).await {
+                                Ok(status) => {
+                                    let healthy = arkon_lib::wait_for_backend(port, 30).await;
+                                    if healthy {
+                                        log::info!("Backend restarted and healthy");
+                                        let _ = handle.emit("backend:status", serde_json::json!({
+                                            "status": "healthy",
+                                            "port": port,
+                                            "pid": status.pid,
+                                        }));
+                                    } else {
+                                        let _ = handle.emit("backend:status", serde_json::json!({
+                                            "status": "error",
+                                            "port": port,
+                                            "pid": null,
+                                            "message": "Restart failed health check",
+                                        }));
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to restart backend: {}", e);
+                                    let _ = handle.emit("backend:status", serde_json::json!({
+                                        "status": "error",
+                                        "port": port,
+                                        "pid": null,
+                                        "message": e,
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+            });
 
             Ok(())
         })

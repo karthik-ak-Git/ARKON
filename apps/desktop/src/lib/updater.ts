@@ -50,7 +50,6 @@ export class AutoUpdater {
   };
 
   private checkInterval: ReturnType<typeof setInterval> | null = null;
-  private onUpdateAvailable: ((version: string) => void) | null = null;
   private onUpdateDownloaded: ((version: string) => void) | null = null;
 
   /**
@@ -61,7 +60,6 @@ export class AutoUpdater {
     onUpdateAvailable?: (version: string) => void;
     onUpdateDownloaded?: (version: string) => void;
   }): Promise<void> {
-    this.onUpdateAvailable = options?.onUpdateAvailable ?? null;
     this.onUpdateDownloaded = options?.onUpdateDownloaded ?? null;
 
     // In production, this would use Tauri's updater plugin:
@@ -92,7 +90,7 @@ export class AutoUpdater {
       // if (update) {
       //   this.state.available = true;
       //   this.state.latestVersion = update.version;
-      //   this.onUpdateAvailable?.(update.version);
+      //   this._onUpdateAvailable?.(update.version);
       // }
 
       console.log('[AutoUpdater] Checking for updates...');
@@ -188,7 +186,6 @@ export class AutoUpdater {
    */
   destroy(): void {
     this.stopPeriodicCheck();
-    this.onUpdateAvailable = null;
     this.onUpdateDownloaded = null;
   }
 }
@@ -211,10 +208,10 @@ export function useAutoUpdater(options?: {
   useEffect(() => {
     autoUpdater.init({
       checkIntervalMs: options?.checkIntervalMs ?? 24 * 60 * 60 * 1000, // 24 hours
-      onUpdateAvailable: (version) => {
+      onUpdateAvailable: (_version) => {
         setState(autoUpdater.getState());
       },
-      onUpdateDownloaded: (version) => {
+      onUpdateDownloaded: (_version) => {
         setState(autoUpdater.getState());
       },
     });

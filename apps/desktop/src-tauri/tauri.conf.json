@@ -53,29 +53,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": []
-    },
-    "dialog": {
-      "all": false,
-      "open": true,
-      "save": true,
-      "message": false,
-      "ask": false,
-      "confirm": false
-    },
-    "fs": {
-      "scope": {
-        "allow": [
-          "$APPDATA/**",
-          "$DOWNLOAD/**",
-          "$DESKTOP/**"
-        ],
-        "deny": []
-      }
-    },
-    "os": {
-      "all": true
+      "open": true
     }
   }
 }
