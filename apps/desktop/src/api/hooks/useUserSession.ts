@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOnboardingStatus } from './useOnboarding';
 import { workspacesApi } from '../workspaces';
 import { aiApi } from '../index';
@@ -51,8 +51,12 @@ export function useUserSession() {
   const { data: onboarding, isLoading: onboardingLoading } = useOnboardingStatus();
   const [session, setSession] = useState<UserSession | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  
+  // Refs to prevent validation loops
+  const validationInProgress = useRef(false);
+  const lastValidatedOnboarding = useRef<string | null>(null);
 
-  // Initialize session from localStorage on mount
+  // Initialize session from localStorage on mount (once)
   useEffect(() => {
     const saved = loadUserSession();
     if (saved) {
@@ -62,29 +66,39 @@ export function useUserSession() {
 
   // Validate session against backend when onboarding loads
   const validateSession = useCallback(async () => {
+    // Prevent concurrent validations
+    if (validationInProgress.current) return;
+    
+    // Create a stable key for the current onboarding state
+    const onboardingKey = onboarding ? `${onboarding.completed}:${onboarding.current_step}:${JSON.stringify(onboarding.data)}` : 'none';
+    if (lastValidatedOnboarding.current === onboardingKey) return;
+    
     if (!onboarding?.completed || !onboarding.data) {
       setSession(prev => prev ? { ...prev, isValid: false } : null);
       return;
     }
 
-    const saved = loadUserSession();
-    if (!saved) {
-      // No saved session, but onboarding is complete - create one
-      const newSession: Omit<UserSession, 'isValid'> = {
-        userId: onboarding.data.user_id || `user_${Date.now()}`,
-        email: onboarding.data.user_email ?? undefined,
-        name: onboarding.data.user_name ?? undefined,
-        workspaceId: onboarding.data.workspace_name ?? undefined,
-        providers: onboarding.data.providers_configured || [],
-      };
-      saveUserSession(newSession);
-      setSession({ ...newSession, isValid: true });
-      return;
-    }
-
-    // Validate saved session against current onboarding state
+    validationInProgress.current = true;
+    lastValidatedOnboarding.current = onboardingKey;
     setIsValidating(true);
+
     try {
+      const saved = loadUserSession();
+      if (!saved) {
+        // No saved session, but onboarding is complete - create one
+        const newSession: Omit<UserSession, 'isValid'> = {
+          userId: onboarding.data.user_id || `user_${Date.now()}`,
+          email: onboarding.data.user_email ?? undefined,
+          name: onboarding.data.user_name ?? undefined,
+          workspaceId: onboarding.data.workspace_name ?? undefined,
+          providers: onboarding.data.providers_configured || [],
+        };
+        saveUserSession(newSession);
+        setSession({ ...newSession, isValid: true });
+        return;
+      }
+
+      // Validate saved session against current onboarding state
       // Verify workspace exists
       let workspaceValid = false;
       if (saved.workspaceId) {
@@ -117,12 +131,14 @@ export function useUserSession() {
         isValid,
       });
     } catch {
-      setSession({ ...saved, isValid: false });
+      setSession(prev => prev ? { ...prev, isValid: false } : null);
     } finally {
       setIsValidating(false);
+      validationInProgress.current = false;
     }
   }, [onboarding]);
 
+  // Single validation effect - no duplicate in useAutoLogin
   useEffect(() => {
     if (!onboardingLoading) {
       validateSession();
@@ -148,7 +164,7 @@ export function useUserSession() {
         workspaceId: updated.workspaceId ?? undefined,
       };
       saveUserSession(sanitized);
-      return { ...sanitized, isValid: prev!.isValid };
+      return { ...sanitized, isValid: prev.isValid };
     });
   }, []);
 
@@ -174,16 +190,10 @@ export function useUserSession() {
 }
 
 export function useAutoLogin() {
-  const { session, isLoading, isLoggedIn, validateSession, login } = useUserSession();
-  const { data: onboarding } = useOnboardingStatus();
+  const { session, isLoading, isLoggedIn, login } = useUserSession();
 
-  // Auto-login if we have a valid session and onboarding is complete
-  useEffect(() => {
-    if (!isLoading && onboarding?.completed && !isLoggedIn && session) {
-      // Session exists but not validated yet - trigger validation
-      validateSession();
-    }
-  }, [isLoading, onboarding?.completed, isLoggedIn, session, validateSession]);
-
+  // Auto-login: just expose the state, don't trigger validation
+  // useUserSession handles validation internally
+  
   return { session, isLoading, isLoggedIn, login };
 }
